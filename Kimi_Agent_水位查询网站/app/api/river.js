@@ -1,14 +1,10 @@
-export const config = {
-  runtime: 'nodejs',
-};
-
 const http = require('node:http');
 const dns = require('node:dns');
 const { promisify } = require('node:util');
 
 const dnsLookup = promisify(dns.lookup);
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -76,4 +72,4 @@ export default async function handler(req, res) {
       diagnostics: diagnostics.steps,
     });
   }
-}
+};
