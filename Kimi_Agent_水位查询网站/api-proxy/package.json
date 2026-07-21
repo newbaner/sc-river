@@ -1,0 +1,9 @@
+{
+  "name": "river-api-proxy",
+  "version": "1.0.0",
+  "description": "四川水情API转发代理",
+  "main": "node-server.js",
+  "scripts": {
+    "start": "node node-server.js"
+  }
+}
