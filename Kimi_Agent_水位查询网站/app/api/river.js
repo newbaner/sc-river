@@ -1,11 +1,14 @@
+export const config = {
+  runtime: 'nodejs22.x',
+};
+
 const http = require('node:http');
 const dns = require('node:dns');
 const { promisify } = require('node:util');
 
 const dnsLookup = promisify(dns.lookup);
 
-module.exports = async function handler(req, res) {
-  // CORS 预检
+export default async function handler(req, res) {
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -16,7 +19,6 @@ module.exports = async function handler(req, res) {
   const diagnostics = { steps: [] };
 
   try {
-    // Step 1: DNS 解析
     diagnostics.steps.push('1. DNS lookup...');
     try {
       const { address, family } = await dnsLookup('www.schwr.com');
@@ -25,7 +27,6 @@ module.exports = async function handler(req, res) {
       diagnostics.steps.push(`1. DNS FAIL: ${dnsErr.code} - ${dnsErr.message}`);
     }
 
-    // Step 2: HTTP 请求
     diagnostics.steps.push('2. HTTP request...');
     const proxyRes = await new Promise((resolve, reject) => {
       const proxyReq = http.request(
@@ -75,4 +76,4 @@ module.exports = async function handler(req, res) {
       diagnostics: diagnostics.steps,
     });
   }
-};
+}
