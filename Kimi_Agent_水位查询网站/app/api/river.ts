@@ -1,6 +1,11 @@
 import http from 'node:http';
+import dns from 'node:dns';
+import { promisify } from 'node:util';
 
-export default function handler(req: any, res: any) {
+const dnsLookup = promisify(dns.lookup);
+
+export default async function handler(req: any, res: any) {
+  // CORS 预检
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -8,37 +13,66 @@ export default function handler(req: any, res: any) {
     return res.status(204).end();
   }
 
-  const proxyReq = http.request(
-    {
-      hostname: 'www.schwr.com',
-      port: 8088,
-      path: '/api/sl/stRiverR/listRelRvfcch',
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      timeout: 8000,
-    },
-    (proxyRes) => {
-      let data = '';
-      proxyRes.on('data', (chunk) => (data += chunk));
-      proxyRes.on('end', () => {
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        res.status(proxyRes.statusCode || 200).send(data);
-      });
+  const diagnostics: any = { steps: [] };
+
+  try {
+    // Step 1: DNS 解析
+    diagnostics.steps.push('1. DNS lookup...');
+    try {
+      const { address, family } = await dnsLookup('www.schwr.com');
+      diagnostics.steps.push(`1. DNS OK: ${address} (IPv${family})`);
+    } catch (dnsErr: any) {
+      diagnostics.steps.push(`1. DNS FAIL: ${dnsErr.code} - ${dnsErr.message}`);
     }
-  );
 
-  proxyReq.on('error', (err) => {
+    // Step 2: HTTP 请求
+    diagnostics.steps.push('2. HTTP request...');
+    const proxyRes = await new Promise<http.IncomingMessage>((resolve, reject) => {
+      const proxyReq = http.request(
+        {
+          hostname: 'www.schwr.com',
+          port: 8088,
+          path: '/api/sl/stRiverR/listRelRvfcch',
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 8000,
+        },
+        (proxyRes) => resolve(proxyRes)
+      );
+
+      proxyReq.on('error', (err: any) => {
+        diagnostics.steps.push(`2. HTTP FAIL: code=${err.code}, syscall=${err.syscall}, message=${err.message}`);
+        reject(err);
+      });
+
+      proxyReq.on('timeout', () => {
+        proxyReq.destroy();
+        diagnostics.steps.push('2. HTTP TIMEOUT after 8s');
+        reject(new Error('Timeout'));
+      });
+
+      proxyReq.write('{}');
+      proxyReq.end();
+    });
+
+    let data = '';
+    for await (const chunk of proxyRes) {
+      data += chunk;
+    }
+
+    diagnostics.steps.push(`3. HTTP OK: status=${proxyRes.statusCode}, bodyLen=${data.length}`);
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.status(500).json({ error: '代理请求失败', message: err.message });
-  });
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.status(proxyRes.statusCode || 200).send(data);
 
-  proxyReq.on('timeout', () => {
-    proxyReq.destroy();
+  } catch (err: any) {
+    diagnostics.steps.push(`4. Final error: ${err.message}`);
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.status(504).json({ error: '代理请求超时' });
-  });
-
-  proxyReq.write('{}');
-  proxyReq.end();
+    res.status(500).json({
+      error: '代理请求失败',
+      message: err.message,
+      code: err.code || null,
+      diagnostics: diagnostics.steps,
+    });
+  }
 }
