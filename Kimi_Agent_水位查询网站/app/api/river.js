@@ -1,5 +1,5 @@
 export const config = {
-  runtime: 'nodejs22.x',
+  runtime: 'nodejs',
 };
 
 const http = require('node:http');
