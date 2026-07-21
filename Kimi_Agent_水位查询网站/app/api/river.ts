@@ -1,50 +1,44 @@
-/**
- * Vercel Edge Function - 水文数据代理
- * 转发请求到四川省水文水资源勘测中心
- */
+import http from 'node:http';
 
-export const config = {
-  runtime: 'edge',
-};
-
-export default async function handler(request: Request): Promise<Response> {
-  // 处理 CORS 预检请求
-  if (request.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 204,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-      },
-    });
+export default function handler(req: any, res: any) {
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    return res.status(204).end();
   }
 
-  try {
-    const response = await fetch('http://www.schwr.com:8088/api/sl/stRiverR/listRelRvfcch', {
+  const proxyReq = http.request(
+    {
+      hostname: 'www.schwr.com',
+      port: 8088,
+      path: '/api/sl/stRiverR/listRelRvfcch',
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: '{}',
-    });
+      timeout: 8000,
+    },
+    (proxyRes) => {
+      let data = '';
+      proxyRes.on('data', (chunk) => (data += chunk));
+      proxyRes.on('end', () => {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.status(proxyRes.statusCode || 200).send(data);
+      });
+    }
+  );
 
-    const data = await response.arrayBuffer();
-    return new Response(data, {
-      status: response.status,
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-        'Access-Control-Allow-Origin': '*',
-      },
-    });
-  } catch (err: any) {
-    return new Response(
-      JSON.stringify({ error: '代理请求失败', message: err.message }),
-      {
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
-      }
-    );
-  }
+  proxyReq.on('error', (err) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.status(500).json({ error: '代理请求失败', message: err.message });
+  });
+
+  proxyReq.on('timeout', () => {
+    proxyReq.destroy();
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.status(504).json({ error: '代理请求超时' });
+  });
+
+  proxyReq.write('{}');
+  proxyReq.end();
 }
