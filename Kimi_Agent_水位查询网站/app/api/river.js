@@ -1,10 +1,10 @@
-import http from 'node:http';
-import dns from 'node:dns';
-import { promisify } from 'node:util';
+const http = require('node:http');
+const dns = require('node:dns');
+const { promisify } = require('node:util');
 
 const dnsLookup = promisify(dns.lookup);
 
-export default async function handler(req: any, res: any) {
+module.exports = async function handler(req, res) {
   // CORS 预检
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -13,7 +13,7 @@ export default async function handler(req: any, res: any) {
     return res.status(204).end();
   }
 
-  const diagnostics: any = { steps: [] };
+  const diagnostics = { steps: [] };
 
   try {
     // Step 1: DNS 解析
@@ -21,13 +21,13 @@ export default async function handler(req: any, res: any) {
     try {
       const { address, family } = await dnsLookup('www.schwr.com');
       diagnostics.steps.push(`1. DNS OK: ${address} (IPv${family})`);
-    } catch (dnsErr: any) {
+    } catch (dnsErr) {
       diagnostics.steps.push(`1. DNS FAIL: ${dnsErr.code} - ${dnsErr.message}`);
     }
 
     // Step 2: HTTP 请求
     diagnostics.steps.push('2. HTTP request...');
-    const proxyRes = await new Promise<http.IncomingMessage>((resolve, reject) => {
+    const proxyRes = await new Promise((resolve, reject) => {
       const proxyReq = http.request(
         {
           hostname: 'www.schwr.com',
@@ -40,7 +40,7 @@ export default async function handler(req: any, res: any) {
         (proxyRes) => resolve(proxyRes)
       );
 
-      proxyReq.on('error', (err: any) => {
+      proxyReq.on('error', (err) => {
         diagnostics.steps.push(`2. HTTP FAIL: code=${err.code}, syscall=${err.syscall}, message=${err.message}`);
         reject(err);
       });
@@ -65,7 +65,7 @@ export default async function handler(req: any, res: any) {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.status(proxyRes.statusCode || 200).send(data);
 
-  } catch (err: any) {
+  } catch (err) {
     diagnostics.steps.push(`4. Final error: ${err.message}`);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.status(500).json({
@@ -75,4 +75,4 @@ export default async function handler(req: any, res: any) {
       diagnostics: diagnostics.steps,
     });
   }
-}
+};
