@@ -16,7 +16,7 @@ export default function Footer() {
             >
               www.schwr.com
             </a>
-            ），数据更新可能存在延迟，仅供参考。
+            ），数据更新可能存在延迟，hook test，仅供参考。
           </p>
         </div>
         <div className="flex items-start gap-2">
