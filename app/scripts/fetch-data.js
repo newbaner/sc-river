@@ -14,7 +14,7 @@ function fetchData() {
       path: '/api/sl/stRiverR/listRelRvfcch',
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      timeout: 15000,
+      timeout: 30000, // 30秒超时
     }, (res) => {
       let data = '';
       res.on('data', chunk => data += chunk);
@@ -26,7 +26,7 @@ function fetchData() {
         } catch (e) { reject(new Error(`解析失败: ${e.message}`)); }
       });
     });
-    req.on('error', reject);
+    req.on('error', (err) => reject(err));
     req.on('timeout', () => { req.destroy(); reject(new Error('超时')); });
     req.write('{}'); req.end();
   });

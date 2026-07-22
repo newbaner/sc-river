@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { ProcessedStation } from '@/types/river';
-import { loadStationsFast, refreshStations, getRiverList } from '@/services/riverData';
+import { loadStationsFast, getRiverList } from '@/services/riverData';
 import { useTheme } from '@/hooks/useTheme';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
@@ -38,22 +38,20 @@ function App() {
     return () => clearTimeout(timer);
   }, []);
 
-  // 手动刷新：直接请求代理获取最新数据
-  const handleRefresh = useCallback(async () => {
+  // 手动刷新：重新加载数据
+  const handleRefresh = useCallback(() => {
     if (isApiLoading) return;
     setIsApiLoading(true);
-    try {
-      const data = await refreshStations();
-      if (data && data.length > 0) {
-        setStations(data);
+    loadStationsFast((data, fromApi) => {
+      setStations(data);
+      if (data.length > 0) {
         const tm = new Date(data[0].tm);
         setLastUpdated(
           `${(tm.getMonth() + 1).toString().padStart(2, '0')}-${tm.getDate().toString().padStart(2, '0')} ${tm.getHours().toString().padStart(2, '0')}:${tm.getMinutes().toString().padStart(2, '0')}`
         );
       }
-    } finally {
       setIsApiLoading(false);
-    }
+    });
   }, [isApiLoading]);
 
   const rivers = useMemo(() => getRiverList(stations), [stations]);
