@@ -63,13 +63,13 @@ async function loadFromStaticJson(): Promise<ProcessedStation[] | null> {
 }
 
 export function loadStationsFast(
-  onUpdate: (stations: ProcessedStation[], fromApi: boolean) => void
+  onUpdate: (stations: ProcessedStation[]) => void
 ): void {
   const fallback = FALLBACK_DATA.map(processStation);
   onUpdate(fallback, false);
   (async () => {
     const data = await loadFromStaticJson();
-    if (data && data.length > 0) onUpdate(data, true);
+    if (data && data.length > 0) onUpdate(data);
   })();
 }
 

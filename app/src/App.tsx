@@ -21,7 +21,7 @@ function App() {
   // 首次加载：本地数据秒开 + 后台尝试Worker
   useEffect(() => {
     setIsApiLoading(true);
-    loadStationsFast((data, fromApi) => {
+    loadStationsFast((data) => {
       setStations(data);
       if (data.length > 0) {
         const tm = new Date(data[0].tm);
@@ -42,7 +42,7 @@ function App() {
   const handleRefresh = useCallback(() => {
     if (isApiLoading) return;
     setIsApiLoading(true);
-    loadStationsFast((data, fromApi) => {
+    loadStationsFast((data) => {
       setStations(data);
       if (data.length > 0) {
         const tm = new Date(data[0].tm);
