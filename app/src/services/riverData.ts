@@ -66,7 +66,7 @@ export function loadStationsFast(
   onUpdate: (stations: ProcessedStation[]) => void
 ): void {
   const fallback = FALLBACK_DATA.map(processStation);
-  onUpdate(fallback, false);
+  onUpdate(fallback);
   (async () => {
     const data = await loadFromStaticJson();
     if (data && data.length > 0) onUpdate(data);
