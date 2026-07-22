@@ -29,9 +29,6 @@ function App() {
           `${(tm.getMonth() + 1).toString().padStart(2, '0')}-${tm.getDate().toString().padStart(2, '0')} ${tm.getHours().toString().padStart(2, '0')}:${tm.getMinutes().toString().padStart(2, '0')}`
         );
       }
-      if (fromApi) {
-        setIsApiLoading(false); // API成功，关闭提示
-      }
     });
     // 3秒后无论API是否成功，都关闭提示
     const timer = setTimeout(() => setIsApiLoading(false), 3000);
