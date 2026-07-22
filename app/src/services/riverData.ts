@@ -6,7 +6,6 @@ const WPTN_MAP: Record<string, WaterTrend> = {
   '6': 'stable',
 };
 
-// 保底数据 — 仅在网络完全不可用或首次加载时短暂显示
 const FALLBACK_DATA: StationData[] = [
   { stcd: "60104500", stnm: "泸州", rvnm: "长江", sttp: null, tm: 1752633600000, day: null, month: null, z: 230.01, q: 10700.0, lgtd: null, lttd: null, wptn: "5", wrz: 239.5, wrq: 39100.0, grz: 241.0, grq: 45400.0, stlc: "川泸州市" },
   { stcd: "60303400", stnm: "德昌", rvnm: "安宁河", sttp: null, tm: 1752633600000, day: null, month: null, z: 1329.1, q: 118.0, lgtd: null, lttd: null, wptn: "5", wrz: null, wrq: 1430.0, grz: null, grq: 2050.0, stlc: "川凉山州德昌县德州镇凤凰村" },
@@ -51,31 +50,6 @@ export function generateMockHistory(baseZ: number, trend: WaterTrend): { time: s
   return data;
 }
 
-/**
- * 从 Vercel Edge Function 代理加载实时数据
- * 同域 /api/river，HTTPS，无跨域问题
- */
-async function loadFromProxy(): Promise<ProcessedStation[] | null> {
-  try {
-    const res = await fetch('/api/river', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: '{}',
-    });
-    if (!res.ok) return null;
-    const json = await res.json();
-    if (json.code === 200 && Array.isArray(json.result) && json.result.length > 0) {
-      return json.result.map((item: StationData) => processStation(item));
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * 从静态 JSON 加载（构建时获取的数据，用于纯静态部署）
- */
 async function loadFromStaticJson(): Promise<ProcessedStation[] | null> {
   try {
     const res = await fetch('/data.json', { cache: 'no-cache' });
@@ -85,44 +59,18 @@ async function loadFromStaticJson(): Promise<ProcessedStation[] | null> {
       return json.result.map((item: StationData) => processStation(item));
     }
     return null;
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
-/**
- * 加载数据策略：
- * 1. 先立即返回保底数据（页面秒开）
- * 2. 后台尝试 /api/river（Vercel 实时代理）
- * 3. 失败则尝试 /data.json（构建时的静态数据）
- * 4. 获取成功后更新为实际数据
- */
 export function loadStationsFast(
   onUpdate: (stations: ProcessedStation[], fromApi: boolean) => void
 ): void {
-  // 立即返回保底数据
   const fallback = FALLBACK_DATA.map(processStation);
   onUpdate(fallback, false);
-
-  // 后台先尝试代理，再尝试静态数据
   (async () => {
-    const proxyData = await loadFromProxy();
-    if (proxyData && proxyData.length > 0) {
-      onUpdate(proxyData, true);
-      return;
-    }
-    const staticData = await loadFromStaticJson();
-    if (staticData && staticData.length > 0) {
-      onUpdate(staticData, true);
-    }
+    const data = await loadFromStaticJson();
+    if (data && data.length > 0) onUpdate(data, true);
   })();
-}
-
-/**
- * 手动刷新 — 直接从代理获取最新数据
- */
-export async function refreshStations(): Promise<ProcessedStation[] | null> {
-  return await loadFromProxy();
 }
 
 export function getRiverList(stations: ProcessedStation[]): string[] {
