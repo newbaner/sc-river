@@ -50,6 +50,21 @@ export function generateMockHistory(baseZ: number, trend: WaterTrend): { time: s
   return data;
 }
 
+async function loadFromApi(): Promise<ProcessedStation[] | null> {
+  try {
+    const res = await fetch('https://hjxzw35e7ceb4.preview.kimi.site/api/river', {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    if (json.code === 200 && Array.isArray(json.result) && json.result.length > 0) {
+      return json.result.map((item: StationData) => processStation(item));
+    }
+    return null;
+  } catch { return null; }
+}
+
 async function loadFromStaticJson(): Promise<ProcessedStation[] | null> {
   try {
     const res = await fetch('/data.json', { cache: 'no-cache' });
@@ -68,8 +83,10 @@ export function loadStationsFast(
   const fallback = FALLBACK_DATA.map(processStation);
   onUpdate(fallback);
   (async () => {
-    const data = await loadFromStaticJson();
-    if (data && data.length > 0) onUpdate(data);
+    const apiData = await loadFromApi();
+    if (apiData && apiData.length > 0) { onUpdate(apiData); return; }
+    const staticData = await loadFromStaticJson();
+    if (staticData && staticData.length > 0) onUpdate(staticData);
   })();
 }
 
