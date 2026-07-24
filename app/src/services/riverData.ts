@@ -50,10 +50,12 @@ export function generateMockHistory(baseZ: number, trend: WaterTrend): { time: s
   return data;
 }
 
+// 直接请求新API（浏览器会带上认证cookie）
 async function loadFromApi(): Promise<ProcessedStation[] | null> {
   try {
     const res = await fetch('https://hjxzw35e7ceb4.preview.kimi.site/api/river', {
       method: 'GET',
+      credentials: 'include', // 带上cookie
       headers: { 'Accept': 'application/json' },
     });
     if (!res.ok) return null;
@@ -65,6 +67,7 @@ async function loadFromApi(): Promise<ProcessedStation[] | null> {
   } catch { return null; }
 }
 
+// 从静态JSON加载（保底）
 async function loadFromStaticJson(): Promise<ProcessedStation[] | null> {
   try {
     const res = await fetch('/data.json', { cache: 'no-cache' });
