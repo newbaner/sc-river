@@ -50,14 +50,10 @@ export function generateMockHistory(baseZ: number, trend: WaterTrend): { time: s
   return data;
 }
 
-// 直接请求新API（浏览器会带上认证cookie）
-async function loadFromApi(): Promise<ProcessedStation[] | null> {
+// Vercel版本：请求同域 /api/river（Edge Function代理）
+async function loadFromProxy(): Promise<ProcessedStation[] | null> {
   try {
-    const res = await fetch('https://hjxzw35e7ceb4.preview.kimi.site/api/river', {
-      method: 'GET',
-      credentials: 'include', // 带上cookie
-      headers: { 'Accept': 'application/json' },
-    });
+    const res = await fetch('/api/river', { method: 'GET' });
     if (!res.ok) return null;
     const json = await res.json();
     if (json.code === 200 && Array.isArray(json.result) && json.result.length > 0) {
@@ -67,7 +63,7 @@ async function loadFromApi(): Promise<ProcessedStation[] | null> {
   } catch { return null; }
 }
 
-// 从静态JSON加载（保底）
+// 静态JSON保底
 async function loadFromStaticJson(): Promise<ProcessedStation[] | null> {
   try {
     const res = await fetch('/data.json', { cache: 'no-cache' });
@@ -86,8 +82,8 @@ export function loadStationsFast(
   const fallback = FALLBACK_DATA.map(processStation);
   onUpdate(fallback);
   (async () => {
-    const apiData = await loadFromApi();
-    if (apiData && apiData.length > 0) { onUpdate(apiData); return; }
+    const proxyData = await loadFromProxy();
+    if (proxyData && proxyData.length > 0) { onUpdate(proxyData); return; }
     const staticData = await loadFromStaticJson();
     if (staticData && staticData.length > 0) onUpdate(staticData);
   })();
